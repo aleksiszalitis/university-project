@@ -1,3 +1,3 @@
 # university-project
-Members: Aleksis Zalitis
+Members: Aleksis Zalitis<br>
 This is a work in progress for a GO game made by PYGAME.
