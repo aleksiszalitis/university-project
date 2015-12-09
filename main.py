@@ -1,3 +1,4 @@
+
 import pygame
 pygame.init()
 
@@ -8,6 +9,7 @@ red = (255, 0, 0)
 blue = (0, 0, 255)
 green = (0, 255, 0)
 golden_rod = (218, 165, 32)
+myfont = pygame.font.SysFont("monospace", 15)
 #Constants
 display_width = 1200
 display_height = 800
@@ -19,8 +21,10 @@ board_width = 19
 board_height = 19
 game_board = [["" for height in range(board_width)] for width in range(board_height)]
 x_first = 50
-y_fisrt = 50
+y_first = 50
 square_size = 30
+white_captured = 0
+black_captured = 0
 
 
 def reverse_token(token):
@@ -67,13 +71,17 @@ def count_liberty(x_cord, y_cord, previous, prev_count,token):
     return count, previous
 
 def is_atari(x_cord, y_cord, token):
+    removed = []
     for element in next_to_enemy(x_cord,y_cord,token):
         liberties, points = count_liberty(element[0],element[1],set(),0,reverse_token(token))
         if liberties == 0:
             for point in points:
                 game_board[point[0]][point[1]]=""
+                removed.append((point[0], point[1]))
+    return removed
     
-def place_token (left, top, token):
+def place_token (x_cord, y_cord, token):
+    left, top = get_pixels(x_cord, y_cord)
     if token == "W":
         color = white
     else:
@@ -85,19 +93,19 @@ def draw_board(color1,color2):
         for boardY in range(board_width):
             if boardX % 2 == 0:
                 if boardY % 2 == 0:
-                    pygame.draw.rect(display_surface, color1, (x_first+square_size * boardX, y_fisrt + square_size * boardY, square_size, square_size))
+                    pygame.draw.rect(display_surface, color1, (x_first+square_size * boardX, y_first + square_size * boardY, square_size, square_size))
                 else:
-                    pygame.draw.rect(display_surface, color2, (x_first+square_size * boardX, y_fisrt + square_size * boardY, square_size, square_size))
+                    pygame.draw.rect(display_surface, color2, (x_first+square_size * boardX, y_first + square_size * boardY, square_size, square_size))
             else:
                 if boardY%2 == 0:
-                    pygame.draw.rect(display_surface, color2, (x_first+square_size*boardX, y_fisrt+square_size*boardY, square_size, square_size))
+                    pygame.draw.rect(display_surface, color2, (x_first+square_size*boardX, y_first+square_size*boardY, square_size, square_size))
                 else:
-                    pygame.draw.rect(display_surface, color1, (x_first+square_size*boardX, y_fisrt+square_size*boardY, square_size, square_size))
+                    pygame.draw.rect(display_surface, color1, (x_first+square_size*boardX, y_first+square_size*boardY, square_size, square_size))
             if game_board[boardX][boardY] != "":
-                place_token(x_first+square_size*boardX, y_fisrt+square_size*boardY, game_board[boardX][boardY])
+                place_token(boardX, boardY, game_board[boardX][boardY])
 
 def get_pixels(box_x,box_y):
-    top = y_fisrt+box_y*square_size
+    top = y_first+box_y*square_size
     left = x_first+box_x*square_size
     return left, top
 
@@ -110,20 +118,47 @@ def get_square(x_cord, y_cord):
                 return box_x, box_y
     return -1, -1
 
+def last_move(x_cord, y_cord, token):
+    left, top = get_pixels(x_cord,y_cord)
+    if token == "W":
+        color = black
+    else:
+        color = white
+    pygame.draw.circle(display_surface, blue, (left + int(square_size/2), top + int(square_size/2)), int(square_size/2*0.8))
+    pygame.draw.circle(display_surface, color, (left + int(square_size/2), top + int(square_size/2)), int(square_size/2*0.7))
+
+def add_lables():
+    x_max, y_max = get_pixels(board_height-1,board_width-1)
+    for i in range(board_height):
+            label = myfont.render(str(chr(i+65)), 1, black)
+            display_surface.blit(label, (x_first+i*square_size+square_size*0.3, y_first-square_size))
+            display_surface.blit(label,(x_first+i*square_size+square_size*0.3, y_max+square_size))
+    for i in range(board_width):
+            number = myfont.render(str(i+1),1,black)
+            display_surface.blit(number,(x_first-square_size, y_max-i*square_size))
+            display_surface.blit(number,(x_max+square_size, y_max-i*square_size))
+
+
+
+
 crashed = False
 
 mouseX = 0
 mouseY = 0
+
 turn = 1
 previous_move = []
-
 while not crashed:
     if turn % 2 == 1:
         token = "B"
     else:
         token = "W"
     draw_board(green, red)
+    add_lables()
+    if len(previous_move)>0:
+        last_move(previous_move[-1][0],previous_move[-1][1],token)
     for event in pygame.event.get():
+
         if event.type == pygame.QUIT:
             crashed = True
 
@@ -132,18 +167,38 @@ while not crashed:
             x, y = get_square(mouseX, mouseY)
             if x >= 0 and y >= 0 and game_board[x][y] == "":
                 game_board[x][y] = token
-                is_atari(x,y,token)
+                removed =is_atari(x,y,token)
                 if count_liberty(x,y,set(),0,token)[0] != 0:
-                    previous_move.append((x,y))
+                    previous_move.append((x,y,removed))
                     turn += 1
+                    if token == "B":
+                        white_captured += len(removed)
+                    else:
+                        black_captured += len(removed)
                 else:
                     game_board[x][y] = ""
+
         elif event.type == pygame.KEYDOWN:
+            #Undo button
             if event.key == pygame.K_u:
                 if len(previous_move)>0:
-                    x, y = previous_move.pop()
+                    x, y, removed = previous_move.pop()
                     game_board[x][y] = ""
+                    if len(removed)>0:
+                        for element in removed:
+                            game_board[element[0]][element[1]] = token
+                    if token=="W":
+                        white_captured -= len(removed)
+                    else:
+                        black_captured -= len(removed)
                     turn -= 1
+            #Pass button
+            elif event.key == pygame.K_p:
+                if token == "W":
+                    black_captured +=1
+                else:
+                    white_captured +=1
+                turn +=1
     pygame.display.update()
     clock.tick(60)
 pygame.quit()
