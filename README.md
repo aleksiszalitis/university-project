@@ -6,6 +6,6 @@ Used resources:<br>
 
 <li><a href="https://inventwithpython.com/">Invent with Python recourses</a></li>
 <li><a href="http://www.britgo.org/">British Go Association</a></li>
-<li>LEARNINGTOSCOREFINALPOSITIONSINTHE
-GAME OF GO</li>
+<li>LEARNING TO SCORE FINAL POSITIONS IN THE
+GAME OF GO - E.C.D. van der Werf, H.J. van den Herik, J.W.H.M. Uiterwijk</li>
 </ul>
