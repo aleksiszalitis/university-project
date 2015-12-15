@@ -1,4 +1,4 @@
-
+from copy import deepcopy
 import pygame
 pygame.init()
 
@@ -17,14 +17,24 @@ display_surface = pygame.display.set_mode((display_width, display_height))
 pygame.display.set_caption("GO")
 clock = pygame.time.Clock()
 display_surface.fill(golden_rod)
-board_width = 19
-board_height = 19
+board_width = 9
+board_height = 9
 game_board = [["" for height in range(board_width)] for width in range(board_height)]
 x_first = 50
 y_first = 50
 square_size = 30
 white_captured = 0
 black_captured = 0
+previous_move = []
+turn = 1
+mouseX = 0
+mouseY = 0
+one_move_ago = []
+two_move_ago = []
+pass_in_row = 0
+white_points = 0
+black_points = 0
+visited = []
 
 
 def reverse_token(token):
@@ -84,9 +94,10 @@ def place_token (x_cord, y_cord, token):
     left, top = get_pixels(x_cord, y_cord)
     if token == "W":
         color = white
-    else:
+        pygame.draw.circle(display_surface, color, (left + int(square_size/2), top + int(square_size/2)), int(square_size/2))
+    elif token == "B":
         color = black
-    pygame.draw.circle(display_surface, color, (left + int(square_size/2), top + int(square_size/2)), int(square_size/2))
+        pygame.draw.circle(display_surface, color, (left + int(square_size/2), top + int(square_size/2)), int(square_size/2))
 
 def draw_board(color1,color2):
     for boardX in range(board_height):
@@ -138,16 +149,75 @@ def add_lables():
             display_surface.blit(number,(x_first-square_size, y_max-i*square_size))
             display_surface.blit(number,(x_max+square_size, y_max-i*square_size))
 
+def undo(white_captured, black_captured,turn, token):
+    x, y, removed = previous_move.pop()
+    game_board[x][y] = ""
+    if len(removed)>0:
+       for element in removed:
+            game_board[element[0]][element[1]] = token
+    if token=="W":
+        white_captured -= len(removed)
+    else:
+        black_captured -= len(removed)
+    turn -= 1
+    return white_captured, black_captured, turn
 
+def game_end():
+    go_over()
+    count_points()
+    white_total = white_points-white_captured
+    black_total = black_points-black_captured
+    print("White has a total of "+str(white_total)+" points.")
+    print("Black has a total of "+str(black_total)+" points.")
+    if white_total>black_total:
+        print("White wins")
+    elif white_total<black_total:
+        print("Black wins")
+    elif white_total==black_total:
+        print("Draw")
+
+def mark_dead_strings():
+    print("TODO")
+
+def go_over():
+    for x in range(board_height):
+        for y in range(board_width):
+            if game_board[x][y]=="B" or game_board[x][y]=="W":
+                flood_fill(x+1,y,game_board[x][y])
+                flood_fill(x-1,y,game_board[x][y])
+                flood_fill(x,y+1,game_board[x][y])
+                flood_fill(x,y-1,game_board[x][y])
+
+def flood_fill(x,y, token):
+    if x>=0 and x<board_width and y>=0 and y<board_height:
+        if game_board[x][y] == "B" or game_board[x][y] == "W" or (x, y) in visited:
+            return
+        if game_board[x][y]=="":
+            game_board[x][y]=0
+        if token == "W":
+            game_board[x][y] += 1
+        elif token == "B":
+            game_board[x][y] -= 1
+        visited.append((x, y))
+        flood_fill(x+1,y,token)
+        flood_fill(x-1,y,token)
+        flood_fill(x,y+1,token)
+        flood_fill(x,y-1,token)
+
+def count_points():
+     for x in range(board_height):
+        for y in range(board_width):
+            if game_board[x][y]==1:
+                global white_points
+                white_points += 1
+            elif game_board[x][y]==-1:
+                global black_points
+                black_points +=1
 
 
 crashed = False
 
-mouseX = 0
-mouseY = 0
 
-turn = 1
-previous_move = []
 while not crashed:
     if turn % 2 == 1:
         token = "B"
@@ -175,30 +245,34 @@ while not crashed:
                         white_captured += len(removed)
                     else:
                         black_captured += len(removed)
+                    pass_in_row = 0
+                    if game_board == two_move_ago:
+                        white_captured, black_captured, turn = undo(white_captured,black_captured,turn,reverse_token(token))
+                    else:
+                        two_move_ago = deepcopy(one_move_ago)
+                        one_move_ago = deepcopy(game_board)
                 else:
                     game_board[x][y] = ""
 
+
         elif event.type == pygame.KEYDOWN:
             #Undo button
-            if event.key == pygame.K_u:
-                if len(previous_move)>0:
-                    x, y, removed = previous_move.pop()
-                    game_board[x][y] = ""
-                    if len(removed)>0:
-                        for element in removed:
-                            game_board[element[0]][element[1]] = token
-                    if token=="W":
-                        white_captured -= len(removed)
-                    else:
-                        black_captured -= len(removed)
-                    turn -= 1
+            if event.key == pygame.K_u and len(previous_move)>0:
+                white_captured, black_captured, turn = undo(white_captured,black_captured,turn,token)
+
             #Pass button
             elif event.key == pygame.K_p:
-                if token == "W":
-                    black_captured +=1
+                pass_in_row +=1
+                if pass_in_row==3:
+                    game_end()
                 else:
-                    white_captured +=1
-                turn +=1
+                    if token == "W":
+                        black_captured +=1
+                    else:
+                        white_captured +=1
+                    turn +=1
+
+
     pygame.display.update()
     clock.tick(60)
 pygame.quit()
