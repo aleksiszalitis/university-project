@@ -4,6 +4,8 @@ This is a work in progress for a GO game made by PYGAME.<br>
 Used resources:<br>
 <ul>
 
-<li><a href="https://inventwithpython.com/">Invent with Python recourses</a></li><br>
+<li><a href="https://inventwithpython.com/">Invent with Python recourses</a></li>
 <li><a href="http://www.britgo.org/">British Go Association</a></li>
+<li>LEARNINGTOSCOREFINALPOSITIONSINTHE
+GAME OF GO</li>
 </ul>
