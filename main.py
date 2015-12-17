@@ -1,7 +1,7 @@
+import easygui
 from copy import deepcopy
 import pygame
 pygame.init()
-
 #Colors
 black = (0, 0, 0)
 white = (255, 255, 255)
@@ -16,7 +16,7 @@ display_height = 800
 display_surface = pygame.display.set_mode((display_width, display_height))
 pygame.display.set_caption("GO")
 clock = pygame.time.Clock()
-display_surface.fill(golden_rod)
+display_surface.fill(white)
 board_width = 9
 board_height = 9
 game_board = [["" for height in range(board_width)] for width in range(board_height)]
@@ -36,7 +36,19 @@ white_points = 0
 black_points = 0
 visited = []
 
-
+def game_start():
+    size = easygui.indexbox("Choose the size of the board", choices=("9x9","13x13","19x19"))
+    global  board_height, board_width
+    if size == 0:
+        board_width = 9
+        board_height = 9
+    elif size == 1:
+        board_height = 13
+        board_width = 13
+    elif size == 2:
+        board_height = 19
+        board_width = 19
+    return board_width, board_height
 def reverse_token(token):
     if token == "W":
         return "B"
@@ -112,8 +124,19 @@ def draw_board(color1,color2):
                     pygame.draw.rect(display_surface, color2, (x_first+square_size*boardX, y_first+square_size*boardY, square_size, square_size))
                 else:
                     pygame.draw.rect(display_surface, color1, (x_first+square_size*boardX, y_first+square_size*boardY, square_size, square_size))
+    draw_lines()
+    for boardX in range(board_height):
+        for boardY in range(board_width):
             if game_board[boardX][boardY] != "":
                 place_token(boardX, boardY, game_board[boardX][boardY])
+
+def draw_lines():
+    for x in range(board_height):
+        left, top = get_pixels(0,x)
+        pygame.draw.line(display_surface,black,(left+square_size*0.5,top+square_size*0.5),(left+board_width*square_size-square_size*0.5,top+square_size*0.5))
+    for y in range(board_width):
+        left, top = get_pixels(y,0)
+        pygame.draw.line(display_surface,black,(left+square_size*0.5,top+square_size*0.5),(left+square_size*0.5,top+board_height*square_size-square_size*0.5))
 
 def get_pixels(box_x,box_y):
     top = y_first+box_y*square_size
@@ -163,46 +186,102 @@ def undo(white_captured, black_captured,turn, token):
     return white_captured, black_captured, turn
 
 def game_end():
+    easygui.msgbox("Please mark the dead stones now. When you are done, click d")
+    mark_dead_strings()
     go_over()
     count_points()
     white_total = white_points-white_captured
     black_total = black_points-black_captured
-    print("White has a total of "+str(white_total)+" points.")
-    print("Black has a total of "+str(black_total)+" points.")
     if white_total>black_total:
-        print("White wins")
+        easygui.msgbox("White wins with "+str(white_total)+" to "+str(black_total)+" points.")
     elif white_total<black_total:
-        print("Black wins")
+        easygui.msgbox("Black wins with "+str(black_total)+" to "+str(white_total)+" points.")
     elif white_total==black_total:
-        print("Draw")
+        easygui.msgbox("Draw")
+
 
 def mark_dead_strings():
-    print("TODO")
+    done = False
+    draw_board(golden_rod, golden_rod)
+    while not done:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                done = True
+                global crashed
+                crashed = True
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouseX, mouseY = event.pos
+                x, y = get_square(mouseX, mouseY)
+                print(x,y)
+                if x >= 0 and y >= 0 and game_board[x][y] != "":
+                    game_board[x][y] = mark(x,y)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_d:
+                    done = True
+        pygame.display.update()
+        clock.tick(60)
+    for x in range(board_height):
+        for y in range(board_width):
+            if "D" in game_board[x][y]:
+                game_board[x][y] =""
+    draw_board(golden_rod, golden_rod)
+    return
+
+def mark(x,y):
+    if game_board[x][y] == "W" or game_board[x][y]=="B":
+        game_board[x][y] += "D"
+        draw_square(x,y)
+    elif game_board[x][y] == "WD":
+        game_board[x][y] = "W"
+        draw_square(x,y)
+    elif game_board[x][y] == "BD":
+        game_board[x][y] = "B"
+        draw_square(x,y)
+    return game_board[x][y]
+
+def draw_square(x_cord,y_cord):
+    token = game_board[x_cord][y_cord]
+    left, top = get_pixels(x_cord,y_cord)
+    if token == "BD":
+        first_color = blue
+        second_color = black
+    elif token=="B":
+        first_color = black
+        second_color = black
+    elif token == "WD":
+        first_color = blue
+        second_color = white
+    elif token=="W":
+        first_color = white
+        second_color = white
+    pygame.draw.rect(display_surface, first_color, (left+square_size*0.2,top+square_size*0.2, square_size*0.6, square_size*0.6))
+    pygame.draw.rect(display_surface,second_color,(left+square_size*0.25,top+square_size*0.25, square_size*0.5, square_size*0.5))
 
 def go_over():
     for x in range(board_height):
         for y in range(board_width):
             if game_board[x][y]=="B" or game_board[x][y]=="W":
-                flood_fill(x+1,y,game_board[x][y])
-                flood_fill(x-1,y,game_board[x][y])
-                flood_fill(x,y+1,game_board[x][y])
-                flood_fill(x,y-1,game_board[x][y])
+                flood_fill(x+1,y,game_board[x][y],visited)
+                flood_fill(x-1,y,game_board[x][y],visited)
+                flood_fill(x,y+1,game_board[x][y],visited)
+                flood_fill(x,y-1,game_board[x][y],visited)
 
-def flood_fill(x,y, token):
+def flood_fill(x,y, token,visited):
     if x>=0 and x<board_width and y>=0 and y<board_height:
-        if game_board[x][y] == "B" or game_board[x][y] == "W" or (x, y) in visited:
+        if game_board[x][y] == "B" or game_board[x][y] == "W" or (x,y,token) in visited:
             return
         if game_board[x][y]=="":
             game_board[x][y]=0
         if token == "W":
             game_board[x][y] += 1
+            visited.append((x,y,token))
         elif token == "B":
             game_board[x][y] -= 1
-        visited.append((x, y))
-        flood_fill(x+1,y,token)
-        flood_fill(x-1,y,token)
-        flood_fill(x,y+1,token)
-        flood_fill(x,y-1,token)
+            visited.append((x,y,token))
+        flood_fill(x+1,y,token,visited)
+        flood_fill(x-1,y,token,visited)
+        flood_fill(x,y+1,token,visited)
+        flood_fill(x,y-1,token,visited)
 
 def count_points():
      for x in range(board_height):
@@ -216,14 +295,14 @@ def count_points():
 
 
 crashed = False
-
-
+board_width, board_height = game_start()
+game_board = [["" for height in range(board_width)] for width in range(board_height)]
 while not crashed:
     if turn % 2 == 1:
         token = "B"
     else:
         token = "W"
-    draw_board(green, red)
+    draw_board(golden_rod, golden_rod)
     add_lables()
     if len(previous_move)>0:
         last_move(previous_move[-1][0],previous_move[-1][1],token)
@@ -243,7 +322,7 @@ while not crashed:
                     turn += 1
                     if token == "B":
                         white_captured += len(removed)
-                    else:
+                    elif token == "W":
                         black_captured += len(removed)
                     pass_in_row = 0
                     if game_board == two_move_ago:
@@ -253,7 +332,6 @@ while not crashed:
                         one_move_ago = deepcopy(game_board)
                 else:
                     game_board[x][y] = ""
-
 
         elif event.type == pygame.KEYDOWN:
             #Undo button
@@ -271,7 +349,6 @@ while not crashed:
                     else:
                         white_captured +=1
                     turn +=1
-
 
     pygame.display.update()
     clock.tick(60)
